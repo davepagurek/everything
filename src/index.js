@@ -1,37 +1,27 @@
 import REGL from 'regl';
 import { mat4, vec3 } from 'gl-matrix';
 
+import { cube } from './geometry/cube';
+import { terrain } from './geometry/terrain';
+
 import { generateFlat } from './commands/flat';
 
-const regl = REGL();
+const regl = REGL({ extensions: ['OES_standard_derivatives'] });
 const flat = generateFlat(regl);
 
-const cube = {
-  positions: [
-    [-0.5, +0.5, +0.5], [+0.5, +0.5, +0.5], [+0.5, -0.5, +0.5], [-0.5, -0.5, +0.5], // positive z face
-    [+0.5, +0.5, +0.5], [+0.5, +0.5, -0.5], [+0.5, -0.5, -0.5], [+0.5, -0.5, +0.5], // positive x face
-    [+0.5, +0.5, -0.5], [-0.5, +0.5, -0.5], [-0.5, -0.5, -0.5], [+0.5, -0.5, -0.5], // negative z face
-    [-0.5, +0.5, -0.5], [-0.5, +0.5, +0.5], [-0.5, -0.5, +0.5], [-0.5, -0.5, -0.5], // negative x face
-    [-0.5, +0.5, -0.5], [+0.5, +0.5, -0.5], [+0.5, +0.5, +0.5], [-0.5, +0.5, +0.5], // top face
-    [-0.5, -0.5, -0.5], [+0.5, -0.5, -0.5], [+0.5, -0.5, +0.5], [-0.5, -0.5, +0.5],  // bottom face
-  ],
+const terrainInstance = { ...terrain(), color: [0.2, 0.9, 0.2] };
+mat4.scale(terrainInstance.model, terrainInstance.model, vec3.fromValues(4, 0.5, 4));
+mat4.translate(terrainInstance.model, terrainInstance.model, vec3.fromValues(0, 0, 0));
 
-  indices: [
-    [2, 1, 0], [2, 0, 3],       // positive z face
-    [6, 5, 4], [6, 4, 7],       // positive x face
-    [10, 9, 8], [10, 8, 11],    // negative z face
-    [14, 13, 12], [14, 12, 15], // negative x face
-    [18, 17, 16], [18, 16, 19], // top face.
-    [20, 21, 22], [23, 20, 22],  // bottom face
-  ],
-};
+const cubeInstance = { ...cube(), color: [0.8, 0.15, 0.15] };
+mat4.scale(cubeInstance.model, cubeInstance.model, vec3.fromValues(0.5, 0.5, 0.5));
+mat4.translate(cubeInstance.model, cubeInstance.model, vec3.fromValues(0, 1.5, 0));
 
-const cubeInstance = {
-  ...cube,
-  model: mat4.fromTranslation(mat4.create(), vec3.fromValues(0, 0, -3)),
-};
+const sun = vec3.fromValues(0, -20, 20);
+const ambient = [0.3, 0.3, 0.3];
+const exposure = 20;
 
-const view = mat4.create();
+const view = mat4.fromTranslation(mat4.create(), vec3.fromValues(0, -0.3, -3));
 const fieldOfView = Math.PI / 4;
 let width = null;
 let height = null;
@@ -48,10 +38,14 @@ regl.frame((context) => {
     mat4.perspective(projection, fieldOfView, width / height, zNear, zFar);
   }
 
-  flat({
-    ...cubeInstance,
-    color: [0.8, 0.15, 0.15],
-    view,
-    projection,
-  });
+  flat([cubeInstance, terrainInstance].map((instance) => {
+    return {
+      ...instance,
+      view,
+      projection,
+      sun,
+      ambient,
+      exposure,
+    };
+  }));
 });
