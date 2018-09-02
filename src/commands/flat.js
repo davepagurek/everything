@@ -1,5 +1,7 @@
 export function generateFlat(regl) {
   return regl({
+    framebuffer: regl.prop('framebuffer'),
+
     vert: `
       precision mediump float;
 
@@ -17,6 +19,7 @@ export function generateFlat(regl) {
         gl_Position = projection * vec4(vertexPosition, 1.0);
       }
     `,
+
     frag: `
       #extension GL_OES_standard_derivatives : enable
 
@@ -26,22 +29,11 @@ export function generateFlat(regl) {
       uniform vec3 color;
       uniform vec3 ambient;
       uniform vec3 sun;
-      uniform float exposure;
 
       varying vec3 vertexPosition;
 
       vec3 normalFromWorld(const vec3 position) {
         return normalize(cross(dFdy(position), dFdx(position)));
-      }
-
-      vec3 toneMap(vec3 x) {
-        float A = 0.15;
-        float B = 0.50;
-        float C = 0.10;
-        float D = 0.20;
-        float E = 0.02;
-        float F = 0.30;
-        return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
       }
 
       void main() {
@@ -53,12 +45,14 @@ export function generateFlat(regl) {
         );
 
         vec3 unmappedColor = ambient * color + lambertian * color;
-        gl_FragColor = vec4(toneMap(exposure * unmappedColor), 1.0);
+        gl_FragColor = vec4(unmappedColor, 1.0);
       }
     `,
+
     attributes: {
       position: regl.prop('positions'),
     },
+
     uniforms: {
       projection: regl.prop('projection'),
       view: regl.prop('view'),
@@ -66,8 +60,8 @@ export function generateFlat(regl) {
       color: regl.prop('color'),
       sun: regl.prop('sun'),
       ambient: regl.prop('ambient'),
-      exposure: regl.prop('exposure'),
     },
+
     elements: regl.prop('indices'),
   });
 }
