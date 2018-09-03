@@ -32,11 +32,13 @@ export function generateFlat(regl) {
 
       varying vec3 vertexPosition;
 
+      // Instead of passing in normals, I'm just computing them from adjacent pixels
       vec3 normalFromWorld(const vec3 position) {
         return normalize(cross(dFdy(position), dFdx(position)));
       }
 
       void main() {
+        // TODO: this can all be put in the vertex shader
         vec3 sunPosition = (view * vec4(sun, 1.0)).xyz;
         float lambertian = clamp(
           dot(normalize(sunPosition - vertexPosition), normalFromWorld(vertexPosition)),

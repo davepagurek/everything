@@ -20,7 +20,7 @@ export function generateComposite(regl) {
       uniform vec2 screenSize;
 
       const float EDGE_SHARPNESS = 1.0;
-      const int SCALE = 2;
+      const int SCALE = 2; // We already blurred with adjacent pixels in the oclcusion shader
 
       float blurAO(vec2 screenSpaceOrigin) {
         float sum = texture2D(occlusion, screenSpaceOrigin).x;
@@ -35,11 +35,15 @@ export function generateComposite(regl) {
                 vec2(float(x * SCALE), float(y * SCALE)) * vec2(1.0/screenSize.x, 1.0/screenSize.y);
               float ao = texture2D(occlusion, samplePosition).x;
               float sampleDepth = texture2D(depth, samplePosition).x;
+
+              // Only use a sample if it isn't out to infinity (depth = 1.0)
               if (sampleDepth < 1.0) {
-                int kx = 4 - (x < 0 ? -x : x);
-                int ky = 4 - (y < 0 ? -y : y);
-                float weight = 0.3 + (abs(float(x * y)) / (25.0 * 25.0));
-                weight *= max(0.0, 1.0 - (EDGE_SHARPNESS * 2000.0) * abs(sampleDepth - originDepth));
+
+                // Try to weigh samples closer to the original point more highly
+                float weight = 0.3 + 1.0 - (abs(float(x * y)) / 16.0);
+
+                // Also try to weigh samples more highly if they're at similar depths
+                weight *= max(0.0, 1.0 - (EDGE_SHARPNESS * 2000.0) * abs(sampleDepth - originDepth)*0.5);
 
                 sum += ao * weight;
                 totalWeight += weight;
@@ -52,6 +56,7 @@ export function generateComposite(regl) {
         return sum / (totalWeight + epsilon);
       }
 
+      // John Hable's tone mapping function, to get each color channel into [0,1]
       vec3 toneMap(vec3 x) {
         float A = 0.15;
         float B = 0.50;
@@ -69,10 +74,10 @@ export function generateComposite(regl) {
         float occlusionAtOrigin = blurAO(screenSpaceOrigin);
 
         gl_FragColor = vec4(toneMap(exposure * occlusionAtOrigin * colorAtOrigin), 1.0);
-        //gl_FragColor = vec4(occlusionAtOrigin, occlusionAtOrigin, occlusionAtOrigin, 1.0);
       }
     `,
 
+    // Render a rectangle that covers the screen so that we can do calculations for each pixel
     attributes: {
       position: [
         -1.0, -1.0,
@@ -81,7 +86,6 @@ export function generateComposite(regl) {
         1.0, 1.0
       ],
     },
-
     count: 4,
 
     uniforms: {

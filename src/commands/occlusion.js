@@ -17,7 +17,6 @@ export function generateOcclusion(regl) {
 
       precision mediump float;
 
-      uniform sampler2D color;
       uniform sampler2D depth;
       uniform vec2 screenSize;
       uniform float zNear;
@@ -150,17 +149,18 @@ export function generateOcclusion(regl) {
 
         occlusion = 1.0 - occlusion / (4.0 * float(NUM_SAMPLES));
         occlusion = clamp(pow(occlusion, 1.0 + INTENSITY), 0.0, 1.0);
-        //if (abs(dFdx(worldSpaceOrigin.z)) < 0.5) {
-          //occlusion -= dFdx(occlusion) * (float(AND(pixel.x, 1)) - 0.5);
-        //}
-        //if (abs(dFdy(worldSpaceOrigin.z)) < 0.5) {
-          //occlusion -= dFdy(occlusion) * (float(AND(pixel.y, 1)) - 0.5);
-        //}
+        if (abs(dFdx(worldSpaceOrigin.z)) < 0.5) {
+          occlusion -= dFdx(occlusion) * (float(AND(pixel.x, 1)) - 0.5);
+        }
+        if (abs(dFdy(worldSpaceOrigin.z)) < 0.5) {
+          occlusion -= dFdy(occlusion) * (float(AND(pixel.y, 1)) - 0.5);
+        }
 
         gl_FragColor = vec4(occlusion, occlusion, occlusion, 1.0);
       }
     `,
 
+    // Render a rectangle that covers the screen so that we can do calculations for each pixel
     attributes: {
       position: [
         -1.0, -1.0,
@@ -169,12 +169,10 @@ export function generateOcclusion(regl) {
         1.0, 1.0
       ],
     },
-
     count: 4,
 
     uniforms: {
       screenSize: ({framebufferWidth, framebufferHeight}) => [framebufferWidth, framebufferHeight],
-      color: regl.prop('color'),
       depth: regl.prop('depth'),
       zNear: regl.prop('zNear'),
       zFar: regl.prop('zFar'),
